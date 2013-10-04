@@ -2,6 +2,11 @@
 """
 Wiky.py - Python library to converts Wiki MarkUp language to HTML.
           Based on Wiki.js by Tanin Na Nakorn
+          
+Copyright © 2013 Sandy Carter <bwrsandman@gmail.com>
+This work is free. You can redistribute it and/or modify it under the
+terms of the Do What The Fuck You Want To Public License, Version 2,
+as published by Sam Hocevar. See the COPYING file for more details.
 """
 
 import re
@@ -22,7 +27,7 @@ re_b = re.compile("'''(([^']|([^'](''?)?[^']))+)'''")
 re_i = re.compile("''(([^']|([^']'?[^']))+)''")
 
 class Wiky:
-    def __init__(self, link_image=True):
+    def __init__(self, link_image=None):
         self.link_image = link_image
 
     def process(self, wikitext):
@@ -152,17 +157,16 @@ class Wiky:
         return html
 
     def process_url(self, txt):
-        css = ('style="background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAGXRFWHRT'
-               'b2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAFZJREFUeF59z4EJADEIQ1F36k7u5E7ZKXeUQPACJ3wK7UNokVxVk9kHnQH7bY9'
-               'hbDyDhNXgjpRLqFlo4M2GgfyJHhjq8V4agfrgPQX3JtJQGbofmCHgA/nAKks+JAjFAAAAAElFTkSuQmCC\") no-repeat scroll '
-               'right center transparent;padding-right: 13px;"')
+        css = ('style="background: url(\"%s\") no-repeat scroll '
+               'right center transparent;padding-right: 13px;"'
+               % self.link_image) if self.link_image else ''
         try:
             index = txt.index(" ")
             url = txt[:index]
             label = txt[index + 1:]
         except ValueError:
             label = url = txt
-        return """<a href="%s" %s>%s</a>""" % (url, css if self.link_image else '', label)
+        return """<a href="%s" %s>%s</a>""" % (url, css, label)
 
     @staticmethod
     def process_image(txt):
