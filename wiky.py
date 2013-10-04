@@ -1,322 +1,232 @@
+#!/usr/bin/env python2
 """
-/**
- * Wiky.js - Javascript library to converts Wiki MarkUp language to HTML.
- * You can do whatever with it. Please give me some credits (Apache License)
- * - Tanin Na Nakorn 
- */
-
-var wiky = {
-    options: {
-        'link-image': true //Preserve backward compat
-    }
-}
-
-
-wiky.process = function(wikitext, options) {
-    wiky.options = options || wiky.options;
-
-	var lines = wikitext.split(/\r?\n/);
-	
-	var html = "";
-	
-	for (i=0;i<lines.length;i++)
-	{
-		line = lines[i];
-		if (line.match(/^===/)!=null && line.match(/===$/)!=null)
-		{
-			html += "<h2>"+line.substring(3,line.length-3)+"</h2>";
-		}
-		else if (line.match(/^==/)!=null && line.match(/==$/)!=null)
-		{
-			html += "<h3>"+line.substring(2,line.length-2)+"</h3>";
-		}
-		else if (line.match(/^:+/)!=null)
-		{
-			// find start line and ending line
-			start = i;
-			while (i < lines.length && lines[i].match(/^\:+/)!=null) i++;
-			i--;
-			
-			html += wiky.process_indent(lines,start,i);
-		}
-		else if (line.match(/^----+(\s*)$/)!=null)
-		{
-			html += "<hr/>";
-		}
-		else if (line.match(/^(\*+) /)!=null)
-		{
-			// find start line and ending line
-			start = i;
-			while (i < lines.length && lines[i].match(/^(\*+|\#\#+)\:? /)!=null) i++;
-			i--;
-			
-			html += wiky.process_bullet_point(lines,start,i);
-		}
-		else if (line.match(/^(\#+) /)!=null)
-		{
-			// find start line and ending line
-			start = i;
-			while (i < lines.length && lines[i].match(/^(\#+|\*\*+)\:? /)!=null) i++;
-			i--;
-			
-			html += wiky.process_bullet_point(lines,start,i);
-		}
-		else 
-		{
-			html += wiky.process_normal(line);
-		}
-		
-		html += "<br/>\n";
-	}
-	
-	return html;
-}
-
-wiky.process_indent = function(lines,start,end) {
-	var i = start;
-	
-	var html = "<dl>";
-	
-	for(var i=start;i<=end;i++) {
-		
-		html += "<dd>";
-		
-		var this_count = lines[i].match(/^(\:+)/)[1].length;
-		
-		html += wiky.process_normal(lines[i].substring(this_count));
-		
-		var nested_end = i;
-		for (var j=i+1;j<=end;j++) {
-			var nested_count = lines[j].match(/^(\:+)/)[1].length;
-			if (nested_count <= this_count) break;
-			else nested_end = j;
-		}
-		
-		if (nested_end > i) {
-			html += wiky.process_indent(lines,i+1,nested_end);
-			i = nested_end;
-		}
-		
-		html += "</dd>";
-	}
-	
-	html += "</dl>";
-	return html;
-}
-
-wiky.process_bullet_point = function(lines,start,end) {
-	var i = start;
-	
-	var html = (lines[start].charAt(0)=='*')?"<ul>":"<ol>";
-
-    html += '\n';
-	
-	for(var i=start;i<=end;i++) {
-		
-		html += "<li>";
-		
-		var this_count = lines[i].match(/^(\*+|\#+) /)[1].length;
-		
-		html += wiky.process_normal(lines[i].substring(this_count+1));
-		
-		// continue previous with #:
-		{
-			var nested_end = i;
-			for (var j = i + 1; j <= end; j++) {
-				var nested_count = lines[j].match(/^(\*+|\#+)\:? /)[1].length;
-				
-				if (nested_count < this_count) 
-					break;
-				else {
-					if (lines[j].charAt(nested_count) == ':') {
-						html += "<br/>" + wiky.process_normal(lines[j].substring(nested_count + 2));
-						nested_end = j;
-					} else {
-						break;
-					}
-				}
-					
-			}
-			
-			i = nested_end;
-		}
-		
-		// nested bullet point
-		{
-			var nested_end = i;
-			for (var j = i + 1; j <= end; j++) {
-				var nested_count = lines[j].match(/^(\*+|\#+)\:? /)[1].length;
-				if (nested_count <= this_count) 
-					break;
-				else 
-					nested_end = j;
-			}
-			
-			if (nested_end > i) {
-				html += wiky.process_bullet_point(lines, i + 1, nested_end);
-				i = nested_end;
-			}
-		}
-		
-		// continue previous with #:
-		{
-			var nested_end = i;
-			for (var j = i + 1; j <= end; j++) {
-				var nested_count = lines[j].match(/^(\*+|\#+)\:? /)[1].length;
-				
-				if (nested_count < this_count) 
-					break;
-				else {
-					if (lines[j].charAt(nested_count) == ':') {
-						html += wiky.process_normal(lines[j].substring(nested_count + 2));
-						nested_end = j;
-					} else {
-						break;
-					}
-				}
-					
-			}
-			
-			i = nested_end;
-		}
-		
-		html += "</li>\n";
-	}
-	
-	html += (lines[start].charAt(0)=='*')?"</ul>":"</ol>";
-    html += '\n';
-	return html;
-}
-
-wiky.process_url = function(txt) {
-	
-	var index = txt.indexOf(" "),
-        url = txt,
-        label = txt,
-        css = ' style="background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAFZJREFUeF59z4EJADEIQ1F36k7u5E7ZKXeUQPACJ3wK7UNokVxVk9kHnQH7bY9hbDyDhNXgjpRLqFlo4M2GgfyJHhjq8V4agfrgPQX3JtJQGbofmCHgA/nAKks+JAjFAAAAAElFTkSuQmCC\") no-repeat scroll right center transparent;padding-right: 13px;"';
-	
-	if (index !== -1) {
-		url = txt.substring(0, index);
-		label = txt.substring(index + 1);
-	}
-	return '<a href="' + url + '"' + (wiky.options['link-image'] ? css : '') + '>' + label + '</a>';
-};
-
-wiky.process_image = function(txt) {
-	var index = txt.indexOf(" ");
-	url = txt;
-	label = "";
-	
-	if (index > -1) 
-	{
-		url = txt.substring(0,index);
-		label = txt.substring(index+1);
-	}
-	
-	
-	return "<img src='"+url+"' alt=\""+label+"\" />";
-}
-
-wiky.process_video = function(url) {
-
-	if (url.match(/^(https?:\/\/)?(www.)?youtube.com\//) == null)
-	{
-		return "<b>"+url+" is an invalid YouTube URL</b>";
-	}
-	
-	if ((result = url.match(/^(https?:\/\/)?(www.)?youtube.com\/watch\?(.*)v=([^&]+)/)) != null)
-	{
-		url = "http://www.youtube.com/embed/"+result[4];
-	}
-	
-	
-	return '<iframe width="480" height="390" src="'+url+'" frameborder="0" allowfullscreen></iframe>';
-}
-
-wiky.process_normal = function(wikitext) {
-	
-	// Image
-	{
-		var index = wikitext.indexOf("[[File:");
-		var end_index = wikitext.indexOf("]]", index + 7);
-		while (index > -1 && end_index > -1) {
-			
-			wikitext = wikitext.substring(0,index) 
-						+ wiky.process_image(wikitext.substring(index+7,end_index)) 
-						+ wikitext.substring(end_index+2);
-		
-			index = wikitext.indexOf("[[File:");
-			end_index = wikitext.indexOf("]]", index + 7);
-		}
-	}
-	
-	// Video
-	{
-		var index = wikitext.indexOf("[[Video:");
-		var end_index = wikitext.indexOf("]]", index + 8);
-		while (index > -1 && end_index > -1) {
-			
-			wikitext = wikitext.substring(0,index) 
-						+ wiky.process_video(wikitext.substring(index+8,end_index)) 
-						+ wikitext.substring(end_index+2);
-		
-			index = wikitext.indexOf("[[Video:");
-			end_index = wikitext.indexOf("]]", index + 8);
-		}
-	}
-	
-	
-	// URL
-	var protocols = ["http","ftp","news"];
-	
-	for (var i=0;i<protocols.length;i++)
-	{
-		var index = wikitext.indexOf("["+protocols[i]+"://");
-		var end_index = wikitext.indexOf("]", index + 1);
-		while (index > -1 && end_index > -1) {
-		
-			wikitext = wikitext.substring(0,index) 
-						+ wiky.process_url(wikitext.substring(index+1,end_index)) 
-						+ wikitext.substring(end_index+1);
-		
-			index = wikitext.indexOf("["+protocols[i]+"://",end_index+1);
-			end_index = wikitext.indexOf("]", index + 1);
-			
-		}
-	}
-	
-	var count_b = 0;
-	var index = wikitext.indexOf("'''");
-	while(index > -1) {
-		
-		if ((count_b%2)==0) wikitext = wikitext.replace(/'''/,"<b>");
-		else wikitext = wikitext.replace(/'''/,"</b>");
-		
-		count_b++;
-		
-		index = wikitext.indexOf("'''",index);
-	}
-	
-	var count_i = 0;
-	var index = wikitext.indexOf("''");
-	while(index > -1) {
-		
-		if ((count_i%2)==0) wikitext = wikitext.replace(/''/,"<i>");
-		else wikitext = wikitext.replace(/''/,"</i>");
-		
-		count_i++;
-		
-		index = wikitext.indexOf("''",index);
-	}
-	
-	wikitext = wikitext.replace(/<\/b><\/i>/g,"</i></b>");
-	
-	return wikitext;
-}
-
-if (typeof exports === 'object') {
-    for (var i in wiky) {
-        exports[i] = wiky[i];
-    }
-}
+Wiky.py - Python library to converts Wiki MarkUp language to HTML.
+          Based on Wiki.js by Tanin Na Nakorn
 """
+
+import re
+
+re_h2 = re.compile("^===[^=]+===$")
+re_h3 = re.compile("^==[^=]+==$")
+re_indent = re.compile("^:+")
+re_hr = re.compile("^-{4}")
+re_ul = re.compile("^\*+ ")
+re_ol = re.compile("^#+ ")
+re_ul_ol = re.compile("^(\*+|#+) ")
+re_ul_li = re.compile("^(\*+|##+):? ")
+re_ol_li = re.compile("^(\*\*+|#+):? ")
+re_ul_ol_li = re.compile("^(\*+|#+):? ")
+re_youtube = re.compile("^(https?://)?(www\.)?youtube.com/(watch\?(.*)v=|embed/)([^&]+)")
+re_b_i = re.compile("'''''(([^']|([^']('{1,4})?[^']))+)'''''")
+re_b = re.compile("'''(([^']|([^'](''?)?[^']))+)'''")
+re_i = re.compile("''(([^']|([^']'?[^']))+)''")
+
+class Wiky:
+    def __init__(self, link_image=True):
+        self.link_image = link_image
+
+    def process(self, wikitext):
+        lines = wikitext.split("\n")
+        html = ""
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            if re_h2.match(line):
+                html += "<h2>%s</h2>" % line[3:-3]
+            elif re_h3.match(line):
+                html += "<h3>%s</h3>" % line[2:-2]
+            elif re_hr.match(line):
+                html += "<hr/>"
+            elif re_indent.match(line):
+                start = i
+                while i < len(lines) and re_indent.match(lines[i]):
+                    i += 1
+                i -= 1
+                html += self.process_indent(lines[start: i + 1])
+            elif re_ul.match(line):
+                start = i
+                while i < len(lines) and re_ul_li.match(lines[i]):
+                    i += 1
+                i -= 1
+                html += self.process_bullet_point(lines[start: i + 1])
+            elif re_ol.match(line):
+                start = i
+                while i < len(lines) and re_ol_li.match(lines[i]):
+                    i += 1
+                i -= 1
+                html += self.process_bullet_point(lines[start: i + 1])
+            else :
+                html += self.process_normal(line)
+            html += "<br/>\n"
+            i += 1
+        return html
+
+    def process_indent(self, lines):
+        html = "\n<dl>\n"
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            html += "<dd>"
+            this_count = len(re_indent.match(line).group(0))
+            html += self.process_normal(line[this_count:])
+
+            nested_end = i
+            j = i + 1
+            while j < len(lines):
+                nested_count = len(re_indent.match(lines[j]).group(0))
+                if nested_count <= this_count:
+                    break
+                else:
+                    nested_end = j
+                j += 1
+
+            if nested_end > i:
+                html += self.process_indent(lines[i + 1: nested_end + 1])
+                i = nested_end
+
+            html += "</dd>\n"
+            i += 1
+        html += "</dl>\n"
+        return html
+
+    def process_bullet_point(self, lines):
+        if not len(lines):
+            return ""
+        html = "<ul>" if lines[0][0] == "*" else "<ol>"
+        html += '\n'
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            html += "<li>"
+            this_count = len(re_ul_ol.match(line).group(1))
+            html += self.process_normal(line[this_count+1:])
+
+            # continue previous with #:
+            nested_end = i
+            j = i + 1
+            while j < len(lines):
+                nested_count = len(re_ul_ol_li.match(lines[j]).group(1))
+                if nested_count < this_count:
+                    break
+                elif lines[j][nested_count] == ':':
+                    html += "<br/>" + self.process_normal(lines[j][nested_count + 2:])
+                    nested_end = j
+                else:
+                    break
+                j += 1
+            i = nested_end
+
+            # nested bullet point
+            nested_end = i
+            j = i + 1
+            while j < len(lines):
+                nested_count = len(re_ul_ol_li.match(lines[j]).group(1))
+                if nested_count <= this_count:
+                    break
+                else:
+                    nested_end = j
+                j += 1
+
+            if nested_end > i:
+                html += self.process_bullet_point(lines[i + 1: nested_end + 1])
+                i = nested_end
+
+            # continue previous with #:
+            nested_end = i
+            j = i + 1
+            while j < len(lines):
+                nested_count = len(re_ul_ol_li.match(lines[j]).group(1))
+                if nested_count < this_count:
+                    break
+                elif lines[j][nested_count] == ':':
+                    html += self.process_normal(lines[j][nested_count + 2:])
+                    nested_end = j
+                else:
+                    break
+                j += 1
+            i = nested_end
+            html += "</li>\n"
+            i += 1
+        html += "</ul>" if lines[0][0] == "*" else "</ol>"
+        html += '\n'
+        return html
+
+    def process_url(self, txt):
+        css = ('style="background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAGXRFWHRT'
+               'b2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAFZJREFUeF59z4EJADEIQ1F36k7u5E7ZKXeUQPACJ3wK7UNokVxVk9kHnQH7bY9'
+               'hbDyDhNXgjpRLqFlo4M2GgfyJHhjq8V4agfrgPQX3JtJQGbofmCHgA/nAKks+JAjFAAAAAElFTkSuQmCC\") no-repeat scroll '
+               'right center transparent;padding-right: 13px;"')
+        try:
+            index = txt.index(" ")
+            url = txt[:index]
+            label = txt[index + 1:]
+        except ValueError:
+            label = url = txt
+        return """<a href="%s" %s>%s</a>""" % (url, css if self.link_image else '', label)
+
+    @staticmethod
+    def process_image(txt):
+        try:
+            index = txt.index(" ")
+            url = txt[:index]
+            label = txt[index + 1:]
+        except ValueError:
+            url = txt
+            label = ""
+        return '<img src="%s" alt="%s" />' % (url, label)
+
+    @staticmethod
+    def process_video(url):
+        m = re_youtube.match(url)
+        if not m:
+            return "<b>%s is an invalid YouTube URL</b>" % url
+        url = "http://www.youtube.com/embed/" + m.group(5)
+        return '<iframe width="480" height="390" src="%s" frameborder="0" allowfullscreen=""></iframe>' % url
+
+    def process_normal(self, wikitext):
+        # Image
+        while True:
+            try:
+                index = wikitext.index("[[File:")
+                end_index = wikitext.index("]]", index + 7)
+                wikitext = (wikitext[:index] +
+                            self.process_image(wikitext[index + 7:end_index]) +
+                            wikitext[end_index + 2:])
+            except ValueError:
+                break
+
+        # Video
+        while True:
+            try:
+                index = wikitext.index("[[Video:")
+                end_index = wikitext.index("]]", index + 8)
+                wikitext = (wikitext[:index] +
+                            self.process_video(wikitext[index+8:end_index]) +
+                            wikitext[end_index + 2:])
+            except ValueError:
+                break
+
+        # URL
+        for protocol in ["http","ftp","news"]:
+            end_index = -1
+            while True:
+                try:
+                    index = wikitext.index("[%s://" % protocol, end_index + 1)
+                    end_index = wikitext.index("]", index + len(protocol) + 4)
+                    wikitext = (wikitext[:index] +
+                                self.process_url(wikitext[index+1:end_index]) +
+                                wikitext[end_index+1:])
+                except ValueError:
+                    break
+
+        # Bold, Italics, Emphasis
+        wikitext = re_b_i.sub("<b><i>\g<1></i></b>", wikitext)
+        wikitext = re_b.sub("<b>\g<1></b>", wikitext)
+        wikitext = re_i.sub("<i>\g<1></i>", wikitext)
+
+        return wikitext
+
+if __name__ == "__main__":
+    input_complete = open("input_complete").read()
+    w = Wiky()
+    print (w.process(input_complete))
