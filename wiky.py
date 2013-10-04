@@ -1,3 +1,4 @@
+"""
 /**
  * Wiky.js - Javascript library to converts Wiki MarkUp language to HTML.
  * You can do whatever with it. Please give me some credits (Apache License)
@@ -318,3 +319,4 @@ if (typeof exports === 'object') {
         exports[i] = wiky[i];
     }
 }
+"""
